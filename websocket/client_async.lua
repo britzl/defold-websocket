@@ -68,7 +68,7 @@ local new = function()
 	end
 
 	self.sock_send = function(self, data, i, j)
-	assert(coroutine.running(), "You must call the send function from a coroutine")
+		assert(coroutine.running(), "You must call the send function from a coroutine")
 		local sent = 0
 		i = i or 1
 		j = j or #data
@@ -128,6 +128,7 @@ local new = function()
 				self.state = "OPEN"
 				if on_connected_fn then on_connected_fn(ok, err) end
 			else
+				self.url = ws_url
 				local err
 				local ok, err_or_protocol, headers = sync_connect(self,ws_url,ws_protocol)
 				if not ok then
@@ -136,7 +137,7 @@ local new = function()
 				if on_connected_fn then on_connected_fn(ok, err) end
 			end
 		end)
-		coroutines[co] = true
+		coroutines[co] = "connect"
 		coroutine.resume(co, ...)
 	end
 
@@ -144,25 +145,41 @@ local new = function()
 		local co = coroutine.create(function(...)
 			if emscripten then
 				local bytes, err = self.sock_send(...)
+				if err then
+					print(err)
+				end
 			else
 				local ok,was_clean,code,reason = sync_send(...)
+				if not ok then
+					print(reason)
+				end
 			end
 		end)
-		coroutines[co] = true
+		coroutines[co] = "send"
 		coroutine.resume(co, ...)
 	end
 
 	self.receive = function(...)
 		local co = coroutine.create(function(...)
 			if emscripten then
-				local data, err = self.sock_receive(...)
-				if on_message_fn then on_message_fn(data, err) end
+				local data, sock_err = self.sock_receive(...)
+				if on_message_fn then
+					local ok, err = pcall(function() on_message_fn(data, sock_err) end)
+					if not ok then
+						print(err)
+					end
+				end
 			else
 				local message, opcode, was_clean, code, reason = sync_receive(...)
-				if on_message_fn then on_message_fn(message, reason) end
+				if on_message_fn then
+					local ok, err = pcall(function() on_message_fn(message, reason) end)
+					if not ok then
+						print(err)
+					end
+				end
 			end
 		end)
-		coroutines[co] = true
+		coroutines[co] = "receive"
 		coroutine.resume(co, ...)
 	end
 
@@ -177,9 +194,12 @@ local new = function()
 
 
 	self.step = function(self)
-		for co,_ in pairs(coroutines) do
-			if co and coroutine.status(co) == "suspended" then
+		for co,action in pairs(coroutines) do
+			local status = coroutine.status(co)
+			if status == "suspended" then
 				coroutine.resume(co)
+			elseif status == "dead" then
+				coroutines[co] = nil
 			end
 		end
 	end
@@ -188,7 +208,7 @@ local new = function()
 		on_message_fn = fn
 		local co = coroutine.create(function()
 			while true do
-				if self.sock then
+				if self.sock and self.state == "OPEN" then
 					if emscripten then
 						-- I haven't figured out how to know the length of the received data
 						-- receiving with a pattern of "*a" or "*l" will block indefinitely
@@ -205,16 +225,22 @@ local new = function()
 							end
 							coroutine.yield()
 						until err
-						if data and on_message_fn then on_message_fn(data) end
+						if data and on_message_fn then
+							local ok, err = pcall(function() on_message_fn(data) end)
+							if not ok then print(err) end
+						end
 					else
 						local message, opcode, was_clean, code, reason = sync_receive(self)
-						if message then on_message_fn(message) end
+						if message then
+							local ok, err = pcall(function() on_message_fn(message) end)
+							if not ok then print(err) end
+						end
 					end
 				end
 				coroutine.yield()
 			end
 		end)
-		coroutines[co] = true
+		coroutines[co] = "on_message"
 	end
 
 	self.on_connected = function(self, fn)
