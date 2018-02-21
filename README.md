@@ -1,3 +1,5 @@
+![](logo.png)
+
 # Defold-WebSocket
 This project aims to provide a cross platform asynchronous implementation of the WebSockets protocol for Defold projects. Defold-WebSocket is based on the [lua-websocket](https://github.com/lipp/lua-websockets) project with additional code to handle WebSocket connections for HTML5 builds. The additional code is required since Emscripten (which is used for Defold HTML5 builds) will automatically upgrade normal TCP sockets connections to WebSocket connections. Emscripten will also take care of encoding and decoding the WebSocket frames. The WebSocket implementation in this project will bypass the handshake and frame encode/decode of lua-websocket when running in HTML5 builds.
 
