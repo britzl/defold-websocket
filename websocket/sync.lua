@@ -1,7 +1,9 @@
 local frame = require'websocket.frame'
 local handshake = require'websocket.handshake'
 local tools = require'websocket.tools'
-local ssl = require'luasec.ssl'
+if luasec then
+  local ssl = require'luasec.ssl'
+end
 local tinsert = table.insert
 local tconcat = table.concat
 
@@ -128,6 +130,9 @@ local connect = function(self,ws_url,ws_protocol,ssl_params)
     return nil,err,nil
   end
   if protocol == 'wss' then
+    if not ssl then
+      return nil, "bad protocol"
+    end
     self.sock = ssl.wrap(self.sock, ssl_params)
     self.sock:dohandshake()
   elseif protocol ~= "ws" then
