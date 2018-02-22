@@ -15,7 +15,7 @@ Or point to the ZIP file of a [specific release](https://github.com/britzl/defol
 This project depends on the LuaSocket and LuaSec projects:
 
 * [defold-luasocket](https://github.com/britzl/defold-luasocket/archive/0.11.zip)
-* [defold-luasec](https://github.com/sonountaleban/defold-luasec/archive/master.zip)
+* [defold-luasec](https://github.com/subsoap/defold-luasec/archive/master.zip)
 
 You need to add these as dependencies in your game.project file, along with the dependency to this project itself.
 
@@ -34,6 +34,10 @@ You need to add these as dependencies in your game.project file, along with the 
 			else
 				print("Unable to connect", err)
 			end
+		end)
+
+		self.ws:on_disconnected(function()
+			print("Disconnected")
 		end)
 
 		self.ws:on_message(function(message)

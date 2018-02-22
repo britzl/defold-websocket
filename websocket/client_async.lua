@@ -7,11 +7,43 @@ local new = function()
 
 	local emscripten = sys.get_sys_info().system_name == "HTML5"
 
+	local on_connected_fn
+	local on_disconnected_fn
+	local on_message_fn
+
+	local function pcall_and_print(fn, ...)
+		local ok, err = pcall(fn, ...)
+		if not ok then
+			print(err)
+		end
+	end
+
+	local function on_connected(ok, err)
+		if on_connected_fn then
+			if ok then err = nil end
+			pcall_and_print(on_connected_fn, ok, err)
+		end
+	end
+
+	local function on_message(message, err)
+		if on_message_fn then
+			if message then err = nil end
+			pcall_and_print(on_message_fn, message, err)
+		end
+	end
+
+	local function on_disconnected()
+		if on_disconnected_fn then
+			pcall_and_print(on_disconnected_fn)
+		end
+	end
+
+	-- this must be defined before calling sync.extend()
 	self.sock_connect = function(self, host, port)
 		assert(coroutine.running(), "You must call the connect function from a coroutine")
 		self.sock = socket.tcp()
 		self.sock:settimeout(0)
-		self.sock:connect(host,port)
+		local status, err = self.sock:connect(host,port)
 		local sendt = { self.sock }
 		-- start polling for successful connection or error
 		while true do
@@ -20,6 +52,7 @@ local new = function()
 				coroutine.yield()
 			elseif err then
 				self.sock:close()
+				self.sock = nil
 				return nil, err
 			elseif #send_ready == 1 then
 				return true
@@ -27,6 +60,7 @@ local new = function()
 		end
 	end
 
+	-- this must be defined before calling sync.extend()
 	self.sock_send = function(self, data, i, j)
 		assert(coroutine.running(), "You must call the send function from a coroutine")
 		local sent = 0
@@ -48,6 +82,7 @@ local new = function()
 		return sent
 	end
 
+	-- this must be defined before calling sync.extend()
 	self.sock_receive = function(self, pattern, prefix)
 		assert(coroutine.running(), "You must call the receive function from a coroutine")
 		prefix = prefix or ""
@@ -62,11 +97,17 @@ local new = function()
 		return data, err, prefix
 	end
 
+	-- this must be defined before calling sync.extend()
 	self.sock_close = function(self)
 		self.sock:shutdown()
 		self.sock:close()
 	end
 
+	-- this is an optional callback function used by sync.lua
+	self.on_close = function(self)
+		on_disconnected()
+	end
+	
 	self = sync.extend(self)
 
 	local coroutines = {}
@@ -76,66 +117,103 @@ local new = function()
 	local sync_receive = self.receive
 	local sync_close = self.close
 
-	local on_connected_fn
-	local on_message_fn
-
-
+	local function start_on_message_loop()
+		local co = coroutine.create(function()
+			while self.sock and self.state == "OPEN" do
+				if emscripten then
+					-- I haven't figured out how to know the length of the received data
+					-- receiving with a pattern of "*a" or "*l" will block indefinitely
+					-- A message is read as chunks of data at a time, concatenating it as
+					-- it is received and repeated until an error
+					local chunk_size = 1024
+					local data, err, partial
+					repeat
+						self.sock:settimeout(0)
+						local bytes_to_read = data and (#data + chunk_size) or chunk_size
+						data, err, partial = self.sock:receive(bytes_to_read, data)
+						if partial and partial ~= "" then
+							data = partial
+						end
+						coroutine.yield()
+					until err
+					if data then
+						on_message(data)
+					end
+					if err == "closed" then
+						self.state = 'CLOSED'
+						self:sock_close()
+						on_disconnected()
+					end
+				else
+					local message, opcode, was_clean, code, reason = sync_receive(self)
+					if message then
+						on_message(message)
+					end
+				end
+			end
+			coroutine.yield()
+		end)
+		coroutines[co] = "on_message"
+	end
+	
+	-- monkeypatch self.connect
 	self.connect = function(...)
 		local co = coroutine.create(function(self, ws_url, ws_protocol)
 			if emscripten then
 				local protocol, host, port, uri = tools.parse_url(ws_url)
-				local ok, err = self.sock_connect(self, host .. uri, port)
-				self.state = "OPEN"
-				if on_connected_fn then on_connected_fn(ok, err) end
-			else
-				self.url = ws_url
-				local err
-				local ok, err_or_protocol, headers = sync_connect(self,ws_url,ws_protocol)
-				if not ok then
-					err = err_or_protocol
+				local ok, err = self:sock_connect(host .. uri, port)
+				if ok then
+					self.state = "OPEN"
 				end
-				if on_connected_fn then on_connected_fn(ok, err) end
+				on_connected(ok, err)
+			else
+				local ok, err_or_protocol, headers = sync_connect(self,ws_url,ws_protocol)
+				on_connected(ok, err_or_protocol)
 			end
+			start_on_message_loop()
 		end)
 		coroutines[co] = "connect"
 		coroutine.resume(co, ...)
 	end
 
-	self.send = function(...)
-		local co = coroutine.create(function(...)
+	-- monkeypatch self.send
+	self.send = function(self,data,opcode)
+		local co = coroutine.create(function(self,data,opcode)
 			if emscripten then
-				local bytes, err = self.sock_send(...)
-				if err then
-					print(err)
+				local bytes, err = self.sock_send(self,data)
+				if err or #data ~= bytes then
+					print(err or "Didn't send all bytes")
+					self.state = 'CLOSED'
+					self:sock_close()
+					on_disconnected()
 				end
 			else
-				local ok,was_clean,code,reason = sync_send(...)
+				local ok,was_clean,code,reason = sync_send(self,data,opcode)
 				if not ok then
 					print(reason)
 				end
 			end
 		end)
 		coroutines[co] = "send"
-		coroutine.resume(co, ...)
+		coroutine.resume(co, self,data,opcode)
 	end
 
+	-- monkeypatch self.receive
 	self.receive = function(...)
 		local co = coroutine.create(function(...)
 			if emscripten then
-				local data, sock_err = self.sock_receive(...)
-				if on_message_fn then
-					local ok, err = pcall(function() on_message_fn(data, sock_err) end)
-					if not ok then
-						print(err)
-					end
+				local data, err = self.sock_receive(...)
+				if not data or err then
+					self.state = 'CLOSED'
+					self:sock_close()
+					on_disconnected()
+				else
+					on_message(data)
 				end
 			else
 				local message, opcode, was_clean, code, reason = sync_receive(...)
-				if on_message_fn then
-					local ok, err = pcall(function() on_message_fn(message, reason) end)
-					if not ok then
-						print(err)
-					end
+				if message then
+					on_message(message)
 				end
 			end
 		end)
@@ -143,16 +221,19 @@ local new = function()
 		coroutine.resume(co, ...)
 	end
 
+	-- monkeypatch self.close
 	self.close = function(...)
 		if emscripten then
 			self.sock_close(...)
 			self.state = "CLOSED"
+			self:on_close()
 		else
 			sync_close(...)
 		end
 	end
 
 
+	
 	self.step = function(self)
 		for co,action in pairs(coroutines) do
 			local status = coroutine.status(co)
@@ -166,47 +247,16 @@ local new = function()
 
 	self.on_message = function(self, fn)
 		on_message_fn = fn
-		local co = coroutine.create(function()
-			while true do
-				if self.sock and self.state == "OPEN" then
-					if emscripten then
-						-- I haven't figured out how to know the length of the received data
-						-- receiving with a pattern of "*a" or "*l" will block indefinitely
-						-- A message is read as chunks of data at a time, concatenating it as
-						-- it is received and repeated until an error
-						local chunk_size = 1024
-						local data, err, partial
-						repeat
-							self.sock:settimeout(0)
-							local bytes_to_read = data and (#data + chunk_size) or chunk_size
-							data, err, partial = self.sock:receive(bytes_to_read, data)
-							if partial and partial ~= "" then
-								data = partial
-							end
-							coroutine.yield()
-						until err
-						if data and on_message_fn then
-							local ok, err = pcall(function() on_message_fn(data) end)
-							if not ok then print(err) end
-						end
-					else
-						local message, opcode, was_clean, code, reason = sync_receive(self)
-						if message then
-							local ok, err = pcall(function() on_message_fn(message) end)
-							if not ok then print(err) end
-						end
-					end
-				end
-				coroutine.yield()
-			end
-		end)
-		coroutines[co] = "on_message"
 	end
 
 	self.on_connected = function(self, fn)
 		on_connected_fn = fn
 	end
 
+	self.on_disconnected = function(self, fn)
+		on_disconnected_fn = fn
+	end
+	
 	return self
 end
 
