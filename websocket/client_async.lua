@@ -223,13 +223,17 @@ local new = function()
 
 	-- monkeypatch self.close
 	self.close = function(...)
-		if emscripten then
-			self.sock_close(...)
-			self.state = "CLOSED"
-			self:on_close()
-		else
-			sync_close(...)
-		end
+		local co = coroutine.create(function(...)
+			if emscripten then
+				self.sock_close(...)
+				self.state = "CLOSED"
+				self:on_close()
+			else
+				sync_close(...)
+			end
+		end)
+		coroutines[co] = "close"
+		coroutine.resume(co, ...)
 	end
 
 
