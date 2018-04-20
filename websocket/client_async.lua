@@ -69,7 +69,7 @@ local new = function()
 		while i < j do
 			self.sock:settimeout(0)
 			local bytes_sent, err = self.sock:send(data, i, j)
-			if err == "timeout" then
+			if err == "timeout" or err == "wantwrite" then
 				coroutine.yield()
 			elseif err then
 				return nil, err
@@ -90,10 +90,11 @@ local new = function()
 		repeat
 			self.sock:settimeout(0)
 			data, err, prefix = self.sock:receive(pattern, prefix)
-			if err == "timeout" then
+			local timeout = (err == "timeout") or (err == "wantread")
+			if timeout then
 				coroutine.yield()
 			end
-		until data or (err and err ~= "timeout")
+		until data or (err and not timeout)
 		return data, err, prefix
 	end
 
@@ -107,7 +108,7 @@ local new = function()
 	self.on_close = function(self)
 		on_disconnected()
 	end
-	
+
 	self = sync.extend(self)
 
 	local coroutines = {}
@@ -155,10 +156,10 @@ local new = function()
 		end)
 		coroutines[co] = "on_message"
 	end
-	
+
 	-- monkeypatch self.connect
 	self.connect = function(...)
-		local co = coroutine.create(function(self, ws_url, ws_protocol)
+		local co = coroutine.create(function(self, ws_url, ws_protocol, ssl_params)
 			if emscripten then
 				local protocol, host, port, uri = tools.parse_url(ws_url)
 				local ok, err = self:sock_connect(host .. uri, port)
@@ -167,7 +168,9 @@ local new = function()
 				end
 				on_connected(ok, err)
 			else
-				local ok, err_or_protocol, headers = sync_connect(self,ws_url,ws_protocol)
+				local ok, err_or_protocol, headers = pcall(function()
+					return sync_connect(self, ws_url, ws_protocol, ssl_params)
+				end)
 				on_connected(ok, err_or_protocol)
 			end
 			start_on_message_loop()
@@ -237,7 +240,7 @@ local new = function()
 	end
 
 
-	
+
 	self.step = function(self)
 		for co,action in pairs(coroutines) do
 			local status = coroutine.status(co)
@@ -260,7 +263,7 @@ local new = function()
 	self.on_disconnected = function(self, fn)
 		on_disconnected_fn = fn
 	end
-	
+
 	return self
 end
 

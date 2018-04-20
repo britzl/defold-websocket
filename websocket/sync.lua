@@ -1,9 +1,7 @@
 local frame = require'websocket.frame'
 local handshake = require'websocket.handshake'
 local tools = require'websocket.tools'
-if luasec then
-  local ssl = require'luasec.ssl'
-end
+local ssl = luasec and require'luasec.ssl'
 local tinsert = table.insert
 local tconcat = table.concat
 
@@ -133,8 +131,8 @@ local connect = function(self,ws_url,ws_protocol,ssl_params)
     if not ssl then
       return nil, "bad protocol"
     end
-    self.sock = ssl.wrap(self.sock, ssl_params)
-    self.sock:dohandshake()
+    self.sock = assert(ssl.wrap(self.sock, ssl_params))
+    assert(self.sock:dohandshake())
   elseif protocol ~= "ws" then
     return nil, 'bad protocol'
   end
@@ -172,7 +170,6 @@ local connect = function(self,ws_url,ws_protocol,ssl_params)
     local msg = 'Websocket Handshake failed: Invalid Sec-Websocket-Accept (expected %s got %s)'
     return nil,msg:format(expected_accept,headers['sec-websocket-accept'] or 'nil'),headers
   end
-  print("CONNECTED")
   self.state = 'OPEN'
   return true,headers['sec-websocket-protocol'],headers
 end

@@ -51,8 +51,15 @@ function on_input(self, action_id, action)
 				self.ws = nil
 				gui.set_text(gui.get_node("send/label"), "CONNECT")
 			end)
-			--self.ws:connect("ws://echo.websocket.org")
-			self.ws:connect("ws://localhost:9999")
+			local sslparams = {
+				mode = "client",
+				protocol = "tlsv1_2",
+				verify = "none",
+				options = "all",
+			}
+			--self.ws:connect("wss://echo.websocket.org", nil, sslparams)
+			self.ws:connect("ws://echo.websocket.org")
+			--self.ws:connect("ws://localhost:9999")
 		else
 			local message_to_send = 'sending to server'
 			local ok, was_clean, code, reason = self.ws:send(message_to_send)
