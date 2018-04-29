@@ -2,6 +2,12 @@ local socket = require'socket.socket'
 local sync = require'websocket.sync'
 local tools = require'websocket.tools'
 
+local coxpcall = require "websocket.coxpcall"
+
+local VANILLA_LUA51 = _VERSION == "Lua 5.1" and not jit
+local pcall = VANILLA_LUA51 and pcall or coxpcall.pcall
+local corunning = VANILLA_LUA51 and coroutine.running or coxpcall.running
+
 local new = function()
 	local self = {}
 
@@ -40,7 +46,7 @@ local new = function()
 
 	-- this must be defined before calling sync.extend()
 	self.sock_connect = function(self, host, port)
-		assert(coroutine.running(), "You must call the connect function from a coroutine")
+		assert(corunning(), "You must call the connect function from a coroutine")
 		self.sock = socket.tcp()
 		self.sock:settimeout(0)
 		local status, err = self.sock:connect(host,port)
@@ -62,7 +68,7 @@ local new = function()
 
 	-- this must be defined before calling sync.extend()
 	self.sock_send = function(self, data, i, j)
-		assert(coroutine.running(), "You must call the send function from a coroutine")
+		assert(corunning(), "You must call the send function from a coroutine")
 		local sent = 0
 		i = i or 1
 		j = j or #data
@@ -84,7 +90,7 @@ local new = function()
 
 	-- this must be defined before calling sync.extend()
 	self.sock_receive = function(self, pattern, prefix)
-		assert(coroutine.running(), "You must call the receive function from a coroutine")
+		assert(corunning(), "You must call the receive function from a coroutine")
 		prefix = prefix or ""
 		local data, err
 		repeat
