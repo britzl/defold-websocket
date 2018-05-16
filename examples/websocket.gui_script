@@ -57,9 +57,12 @@ function on_input(self, action_id, action)
 				verify = "none",
 				options = "all",
 			}
-			--self.ws:connect("wss://echo.websocket.org", nil, sslparams)
-			self.ws:connect("ws://echo.websocket.org")
-			--self.ws:connect("ws://localhost:9999")
+			local url = "ws://echo.websocket.org"
+			--local url = "ws://localhost:9999"
+			--local url = "wss://echo.websocket.org"
+			log("Connecting to " .. url)
+			--self.ws:connect(url, nil, sslparams)
+			self.ws:connect(url)
 		else
 			local message_to_send = 'sending to server'
 			local ok, was_clean, code, reason = self.ws:send(message_to_send)

@@ -47,23 +47,31 @@ local new = function()
 	-- this must be defined before calling sync.extend()
 	self.sock_connect = function(self, host, port)
 		assert(corunning(), "You must call the connect function from a coroutine")
-		self.sock = socket.tcp()
-		self.sock:settimeout(0)
-		local status, err = self.sock:connect(host,port)
-		local sendt = { self.sock }
-		-- start polling for successful connection or error
-		while true do
-			local receive_ready, send_ready, err = socket.select(nil, sendt, 0)
-			if err == "timeout" then
-				coroutine.yield()
-			elseif err then
-				self.sock:close()
-				self.sock = nil
-				return nil, err
-			elseif #send_ready == 1 then
-				return true
+		local addrinfo = socket.dns.getaddrinfo(host)
+		for _,info in pairs(addrinfo) do
+			if info.family == "inet6" then
+				self.sock = socket.tcp6()
+			else
+				self.sock = socket.tcp()
+			end
+			self.sock:settimeout(0)
+			self.sock:connect(host,port)
+
+			local sendt = { self.sock }
+			-- start polling for successful connection or error
+			while true do
+				local receive_ready, send_ready, err = socket.select(nil, sendt, 0)
+				if err == "timeout" then
+					coroutine.yield()
+				elseif err then
+					break
+				elseif #send_ready == 1 then
+					return true
+				end
 			end
 		end
+		self.sock = nil
+		return nil, "Unable to connect"
 	end
 
 	-- this must be defined before calling sync.extend()
