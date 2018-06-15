@@ -5,8 +5,8 @@ local tools = require'websocket.tools'
 local coxpcall = require "websocket.coxpcall"
 
 local VANILLA_LUA51 = _VERSION == "Lua 5.1" and not jit
-local pcall = VANILLA_LUA51 and pcall or coxpcall.pcall
-local corunning = VANILLA_LUA51 and coroutine.running or coxpcall.running
+local pcall = VANILLA_LUA51 and coxpcall.pcall or pcall
+local corunning = VANILLA_LUA51 and coxpcall.running or coroutine.running
 
 local new = function()
 	local self = {}
