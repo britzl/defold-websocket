@@ -161,7 +161,10 @@ local new = function()
 					end
 				else
 					local message, opcode, was_clean, code, reason = sync_receive(self)
-					if message then
+					-- listen for PING opcode and reply with PONG
+					if opcode == 0x9 then
+						self.send(self, message, 0xA)
+					elseif message then
 						on_message(message)
 					end
 				end

@@ -11,7 +11,7 @@ local receive = function(self)
   end
   local first_opcode
   local frames
-  local bytes = 3
+  local bytes = 2
   local encoded = ''
   local clean = function(was_clean,code,reason)
     self.state = 'CLOSED'
@@ -57,7 +57,7 @@ local receive = function(self)
         elseif opcode ~= frame.CONTINUATION then
           return clean(false,1002,'protocol error')
         end
-        bytes = 3
+        bytes = 2
         encoded = ''
         tinsert(frames,decoded)
       elseif not frames then
