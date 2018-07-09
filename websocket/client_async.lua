@@ -114,7 +114,16 @@ local new = function()
 
 	-- this must be defined before calling sync.extend()
 	self.sock_close = function(self)
-		self.sock:shutdown()
+		-- doing a call to shutdown in HTML5 will result in
+		-- "unsupported socketcall syscall 13"
+		-- https://github.com/britzl/defold-websocket/issues/7
+		-- to be honest not really sure shutdown is needed at all since the
+		-- socket is closed...
+		-- removed here: https://github.com/lipp/lua-websockets/blob/master/src/websocket/client_sync.lua#L30
+		-- but not here: https://github.com/lipp/lua-websockets/blob/master/src/websocket/client_copas.lua#L32
+		if not emscripten then
+			self.sock:shutdown()
+		end
 		self.sock:close()
 	end
 
