@@ -1,7 +1,7 @@
 [project]
 title = Defold-Websocket
 version = 1.0.0
-dependencies = https://github.com/britzl/defold-luasocket/archive/0.11.zip,https://github.com/subsoap/defold-luasec/archive/master.zip
+dependencies = https://github.com/britzl/defold-luasocket/archive/0.11.zip,https://github.com/britzl/defold-luasec/archive/1.0.0.zip
 
 [bootstrap]
 main_collection = /examples/websocket.collectionc
@@ -30,3 +30,4 @@ bundle_identifier = com.defold.defnet
 
 [ios]
 bundle_identifier = com.defold.defnet
+
