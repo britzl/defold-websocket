@@ -14,8 +14,8 @@ Or point to the ZIP file of a [specific release](https://github.com/britzl/defol
 ## Dependencies
 This project depends on the LuaSocket and LuaSec projects:
 
-* [defold-luasocket](https://github.com/britzl/defold-luasocket/archive/0.11.zip)
-* [defold-luasec](https://github.com/subsoap/defold-luasec/archive/master.zip)
+* [defold-luasocket](https://github.com/britzl/defold-luasocket)
+* [defold-luasec](https://github.com/britzl/defold-luasec)
 
 You need to add these as dependencies in your game.project file, along with the dependency to this project itself.
 

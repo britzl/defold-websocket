@@ -5,8 +5,8 @@ local tools = require'websocket.tools'
 local coxpcall = require "websocket.coxpcall"
 
 local VANILLA_LUA51 = _VERSION == "Lua 5.1" and not jit
-local pcall = VANILLA_LUA51 and pcall or coxpcall.pcall
-local corunning = VANILLA_LUA51 and coroutine.running or coxpcall.running
+local pcall = VANILLA_LUA51 and coxpcall.pcall or pcall
+local corunning = VANILLA_LUA51 and coxpcall.running or coroutine.running
 
 local new = function()
 	local self = {}
@@ -170,7 +170,10 @@ local new = function()
 					end
 				else
 					local message, opcode, was_clean, code, reason = sync_receive(self)
-					if message then
+					-- listen for PING opcode and reply with PONG
+					if opcode == 0x9 then
+						self.send(self, message, 0xA)
+					elseif message then
 						on_message(message)
 					end
 				end
