@@ -194,7 +194,7 @@ local new = function()
 				end
 				on_connected(ok, err)
 			else
-				local ok, err_or_protocol, headers = pcall(function()
+				local result, ok, err_or_protocol, headers = pcall(function()
 					return sync_connect(self, ws_url, ws_protocol, ssl_params)
 				end)
 				on_connected(ok, err_or_protocol)
