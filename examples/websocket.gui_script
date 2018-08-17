@@ -6,11 +6,13 @@ end
 
 local function update_buttons(self)
 	if self.ws then
-		gui.set_enabled(self.connect_node, false)
+		gui.set_enabled(self.connect_ws_node, false)
+		gui.set_enabled(self.connect_wss_node, false)
 		gui.set_enabled(self.send_node, true)
 		gui.set_enabled(self.close_node, true)
 	else
-		gui.set_enabled(self.connect_node, true)
+		gui.set_enabled(self.connect_ws_node, true)
+		gui.set_enabled(self.connect_wss_node, true)
 		gui.set_enabled(self.send_node, false)
 		gui.set_enabled(self.close_node, false)
 	end
@@ -31,12 +33,11 @@ end
 function init(self)
 	msg.post(".", "acquire_input_focus")
 	msg.post("@render:", "clear_color", { color = vmath.vector4(0.2, 0.4, 0.8, 1.0) })
-	self.connect_node = gui.get_node("connect/button")
+	self.connect_ws_node = gui.get_node("connect_ws/button")
+	self.connect_wss_node = gui.get_node("connect_wss/button")
 	self.send_node = gui.get_node("send/button")
 	self.close_node = gui.get_node("close/button")
-	gui.set_enabled(self.connect_node, true)
-	gui.set_enabled(self.send_node, false)
-	gui.set_enabled(self.close_node, false)
+	update_buttons(self)
 end
 
 function final(self)
@@ -49,41 +50,51 @@ function update(self, dt)
 	end
 end
 
-function on_input(self, action_id, action)
-	if click_button(self.connect_node, action) then
-		log("creating async")
-		self.ws = websocket_async()
-		self.ws:on_message(function(message)
-			log("on_message", message)
-		end)
-		self.ws:on_connected(function(ok, err)
-			log("on_connected", ok, err, type(err))
-			if err then
-				log("on_connected error", err)
-				self.ws:close()
-				self.ws = nil
-			end
-			update_buttons(self)
-		end)
-		self.ws:on_disconnected(function()
-			log("on_disconnected")
+local function connect(self, protocol)
+	log("Creating async websocket")
+	self.ws = websocket_async()
+	self.ws:on_message(function(message)
+		log("Receiving: '" .. tostring(message) .. "'")
+	end)
+	self.ws:on_connected(function(ok, err)
+		log("Connected", ok, err, type(err))
+		if err then
+			log("on_connected error", err)
+			self.ws:close()
 			self.ws = nil
-			update_buttons(self)
-		end)
-		--[[local sslparams = {
+		end
+		update_buttons(self)
+	end)
+	self.ws:on_disconnected(function()
+		log("Disconnected")
+		self.ws = nil
+		update_buttons(self)
+	end)
+
+	local url = nil
+	local sslparams =  nil
+	if protocol == "ws" then
+		url = "ws://echo.websocket.org"
+		--url = "ws://localhost:9999"
+	else
+		sslparams = {
 			mode = "client",
 			protocol = "tlsv1_2",
 			verify = "none",
 			options = "all",
 		}
-		local url = "wss://echo.websocket.org"--]]
-		
-		local url = "ws://echo.websocket.org"
-		--local url = "ws://localhost:9999"
+		url = "wss://echo.websocket.org"
+	end
 
-		log("Connecting to " .. url)
-		self.ws:connect(url, nil, sslparams)
+	log("Connecting to " .. url)
+	self.ws:connect(url, nil, sslparams)
+end
 
+function on_input(self, action_id, action)
+	if click_button(self.connect_ws_node, action) then
+		connect(self, "ws")
+	elseif click_button(self.connect_wss_node, action) then
+		connect(self, "wss")
 	elseif click_button(gui.get_node("send/button"), action) then
 		local message_to_send = 'sending to server'
 		local ok, was_clean, code, reason = self.ws:send(message_to_send)

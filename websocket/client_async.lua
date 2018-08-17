@@ -8,10 +8,21 @@ local VANILLA_LUA51 = _VERSION == "Lua 5.1" and not jit
 local pcall = VANILLA_LUA51 and coxpcall.pcall or pcall
 local corunning = VANILLA_LUA51 and coxpcall.running or coroutine.running
 
+local emscripten = sys.get_sys_info().system_name == "HTML5"
+
+if emscripten then
+	-- avoid mixed content warning if trying to access wss resource from http page
+	-- https://github.com/britzl/defold-websocket/issues/8
+	-- https://github.com/kripken/emscripten/pull/6960
+	html5.run([[
+		Module['websocket'].url = window['location']['protocol'].replace('http', 'ws') + '//';
+	]])
+end
+
 local new = function()
 	local self = {}
 
-	local emscripten = sys.get_sys_info().system_name == "HTML5"
+	
 
 	local on_connected_fn
 	local on_disconnected_fn
