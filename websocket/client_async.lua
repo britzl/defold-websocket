@@ -19,7 +19,7 @@ if emscripten then
 	]])
 end
 
-local new = function()
+local new = function(config)
 	local self = {}
 
 	
@@ -59,7 +59,8 @@ local new = function()
 	self.sock_connect = function(self, host, port)
 		assert(corunning(), "You must call the connect function from a coroutine")
 		local addrinfo = socket.dns.getaddrinfo(host)
-		for _,info in pairs(addrinfo) do
+		local connect_ts = socket.gettime()
+		for _,info in pairs(addrinfo or {}) do
 			if info.family == "inet6" then
 				self.sock = socket.tcp6()
 			else
@@ -72,7 +73,13 @@ local new = function()
 			-- start polling for successful connection or error
 			while true do
 				local receive_ready, send_ready, err = socket.select(nil, sendt, 0)
-				if err == "timeout" then
+				-- check for connection timeout if one has been configured
+				-- this is particularly important on HTML5 when trying to connect
+				-- to a server that is offline since the sock:connect() won't fail
+				-- and `err` will be "timeout" indefinitely
+				if config.connect_timeout and (socket.gettime() - connect_ts > config.connect_timeout) then
+					break
+				elseif err == "timeout" then
 					coroutine.yield()
 				elseif err then
 					break
