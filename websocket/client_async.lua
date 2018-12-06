@@ -22,7 +22,7 @@ end
 local new = function()
 	local self = {}
 
-	
+
 
 	local on_connected_fn
 	local on_disconnected_fn
@@ -125,6 +125,11 @@ local new = function()
 
 	-- this must be defined before calling sync.extend()
 	self.sock_close = function(self)
+		if self.state ~= "CLOSED" then
+			self.state = "CLOSED"
+			on_disconnected()
+		end
+
 		-- doing a call to shutdown in HTML5 will result in
 		-- "unsupported socketcall syscall 13"
 		-- https://github.com/britzl/defold-websocket/issues/7
@@ -135,12 +140,8 @@ local new = function()
 		if not emscripten then
 			self.sock:shutdown()
 		end
-		self.sock:close()
-	end
 
-	-- this is an optional callback function used by sync.lua
-	self.on_close = function(self)
-		on_disconnected()
+		self.sock:close()
 	end
 
 	self = sync.extend(self)
@@ -175,9 +176,7 @@ local new = function()
 						on_message(data)
 					end
 					if err == "closed" then
-						self.state = 'CLOSED'
 						self:sock_close()
-						on_disconnected()
 					end
 				else
 					local message, opcode, was_clean, code, reason = sync_receive(self)
@@ -224,9 +223,7 @@ local new = function()
 				local bytes, err = self.sock_send(self,data)
 				if err or #data ~= bytes then
 					print(err or "Didn't send all bytes")
-					self.state = 'CLOSED'
 					self:sock_close()
-					on_disconnected()
 				end
 			else
 				local ok,was_clean,code,reason = sync_send(self,data,opcode)
@@ -245,9 +242,7 @@ local new = function()
 			if emscripten then
 				local data, err = self.sock_receive(...)
 				if not data or err then
-					self.state = 'CLOSED'
 					self:sock_close()
-					on_disconnected()
 				else
 					on_message(data)
 				end
@@ -267,8 +262,6 @@ local new = function()
 		local co = coroutine.create(function(...)
 			if emscripten then
 				self.sock_close(...)
-				self.state = "CLOSED"
-				self:on_close()
 			else
 				sync_close(...)
 			end

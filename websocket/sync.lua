@@ -14,8 +14,8 @@ local receive = function(self)
   local bytes = 2
   local encoded = ''
   local clean = function(was_clean,code,reason)
-    self.state = 'CLOSED'
     self:sock_close()
+    self.state = 'CLOSED'
     if self.on_close then
       self:on_close()
     end
