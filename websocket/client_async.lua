@@ -20,6 +20,7 @@ if emscripten then
 end
 
 local new = function(config)
+	config = config or {}
 	local self = {}
 
 
