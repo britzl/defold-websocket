@@ -25,7 +25,9 @@ You need to add these as dependencies in your game.project file, along with the 
 	local client_async = require "websocket.client_async"
 
 	function init(self)
-		self.ws = client_async()
+		self.ws = client_async({
+			connect_timeout = 5, -- optional timeout (in seconds) when connecting
+		})
 
 		self.ws:on_connected(function(ok, err)
 			if ok then
