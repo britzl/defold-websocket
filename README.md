@@ -22,42 +22,44 @@ You need to add these as dependencies in your game.project file, along with the 
 
 # Usage
 
-	local client_async = require "websocket.client_async"
+```lua
+local client_async = require "websocket.client_async"
 
-	function init(self)
-		self.ws = client_async({
-			connect_timeout = 5, -- optional timeout (in seconds) when connecting
-		})
+function init(self)
+	self.ws = client_async({
+		connect_timeout = 5, -- optional timeout (in seconds) when connecting
+	})
 
-		self.ws:on_connected(function(ok, err)
-			if ok then
-				print("Connected")
-				msg.post("#", "acquire_input_focus")
-			else
-				print("Unable to connect", err)
-			end
-		end)
-
-		self.ws:on_disconnected(function()
-			print("Disconnected")
-		end)
-
-		self.ws:on_message(function(message)
-			print("Received message", message)
-		end)
-
-		self.ws:connect("ws://localhost:9999")
-	end
-
-	function update(self, dt)
-		self.ws:step()
-	end
-
-	function on_input(self, action_id, action)
-		if action_id == hash("fire") and action.released then
-			self.ws:send("Some data")
+	self.ws:on_connected(function(ok, err)
+		if ok then
+			print("Connected")
+			msg.post("#", "acquire_input_focus")
+		else
+			print("Unable to connect", err)
 		end
+	end)
+
+	self.ws:on_disconnected(function()
+		print("Disconnected")
+	end)
+
+	self.ws:on_message(function(message)
+		print("Received message", message)
+	end)
+
+	self.ws:connect("ws://localhost:9999")
+end
+
+function update(self, dt)
+	self.ws:step()
+end
+
+function on_input(self, action_id, action)
+	if action_id == hash("fire") and action.released then
+		self.ws:send("Some data")
 	end
+end
+```
 
 
 # Important note on Sec-WebSocket-Protocol and Chrome
