@@ -61,6 +61,18 @@ function on_input(self, action_id, action)
 end
 ```
 
+## How to connect using a Secure Web Socket (wss://)
+When connecting to a secure web socket you need to specify the protocol as "wss" and pass SSL parameters like this when connecting the web socket:
+
+```lua
+	local sslparams = {
+		mode = "client",
+		protocol = "tlsv1_2",
+		verify = "none",
+		options = "all",
+	}
+	self.ws:connect("wss://echo.websocket.org", "wss", sslparams)
+```
 
 # Important note on Sec-WebSocket-Protocol and Chrome
 Emscripten will create WebSockets with the Sec-WebSocket-Protocol header set to "binary" during the handshake. Google Chrome expects the response header to include the same Sec-WebSocket-Protocol header. Some WebSocket examples and the commonly used [Echo Test service](https://www.websocket.org/echo.html) does not respect this and omits the response header. This will cause WebSocket connections to fail during the handshake phase in Chrome. Firefox does impose the same restriction. I'm not sure about other browsers.

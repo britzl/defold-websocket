@@ -87,7 +87,7 @@ local function connect(self, protocol)
 	end
 
 	log("Connecting to " .. url)
-	self.ws:connect(url, nil, sslparams)
+	self.ws:connect(url, protocol, sslparams)
 end
 
 function on_input(self, action_id, action)
