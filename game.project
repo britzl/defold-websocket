@@ -23,11 +23,11 @@ shared_state = 1
 include_dirs = websocket
 
 [android]
-package = com.defold.defnet
+package = com.defold.websocket
 
 [osx]
-bundle_identifier = com.defold.defnet
+bundle_identifier = com.defold.websocket
 
 [ios]
-bundle_identifier = com.defold.defnet
+bundle_identifier = com.defold.websocket
 
