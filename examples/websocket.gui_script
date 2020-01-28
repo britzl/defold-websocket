@@ -50,7 +50,7 @@ function update(self, dt)
 	end
 end
 
-local function connect(self, protocol)
+local function connect(self, scheme)
 	log("Creating async websocket")
 	self.ws = websocket_async()
 	self.ws:on_message(function(message)
@@ -73,7 +73,7 @@ local function connect(self, protocol)
 
 	local url = nil
 	local sslparams =  nil
-	if protocol == "ws" then
+	if scheme == "ws" then
 		url = "ws://echo.websocket.org"
 		--url = "ws://localhost:9999"
 	else
@@ -86,8 +86,13 @@ local function connect(self, protocol)
 		url = "wss://echo.websocket.org"
 	end
 
+	-- which Sec-WebSocket-Protocol to use in the header when doing the handshake/upgrade
+	-- for now we can only influence the choice of protocol in non-html5 builds
+	-- in html5 builds it seems like the Sec-WebSocket-Protocol will always be "binary"
+	local ws_protocol = "binary"
+
 	log("Connecting to " .. url)
-	self.ws:connect(url, protocol, sslparams)
+	self.ws:connect(url, ws_protocol, sslparams)
 end
 
 function on_input(self, action_id, action)

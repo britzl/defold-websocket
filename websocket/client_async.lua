@@ -205,7 +205,7 @@ local new = function(config)
 	self.connect = function(...)
 		local co = coroutine.create(function(self, ws_url, ws_protocol, ssl_params)
 			if emscripten then
-				local protocol, host, port, uri = tools.parse_url(ws_url)
+				local scheme, host, port, uri = tools.parse_url(ws_url)
 				local ok, err = self:sock_connect(host .. uri, port)
 				if ok then
 					self.state = "OPEN"
