@@ -1,5 +1,14 @@
 ![](logo.png)
 
+# THIS REPOSITORY AND DEFOLD LIBRARY IS DEPRECATED!
+
+Please migrate from this repo to the official WebSocket implementation for Defold:
+
+https://github.com/defold/extension-websocket
+
+<details><summary>DOCUMENTATION FOR THIS REPO</summary>
+<p>
+
 # Defold-WebSocket
 This project aims to provide a cross platform asynchronous implementation of the WebSockets protocol for Defold projects. Defold-WebSocket is based on the [lua-websocket](https://github.com/lipp/lua-websockets) project with additional code to handle WebSocket connections for HTML5 builds. The additional code is required since Emscripten (which is used for Defold HTML5 builds) will automatically upgrade normal TCP sockets connections to WebSocket connections. Emscripten will also take care of encoding and decoding the WebSocket frames. The WebSocket implementation in this project will bypass the handshake and frame encode/decode of lua-websocket when running in HTML5 builds.
 
@@ -80,3 +89,7 @@ Emscripten will create WebSockets with the Sec-WebSocket-Protocol header set to 
 
 # Testing using a Python based echo server
 There's a Python based WebSocket echo server in the tools folder. The echo server is built using the [simple-websocket-server](https://github.com/dpallot/simple-websocket-server) library. Start it by running `python websocketserver.py` from a terminal. Connect to it from `localhost:9999`. The library has been modified to return the Sec-WebSocket-Protocol response header, as described above.
+
+</p>
+</details>
+
